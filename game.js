@@ -4,7 +4,7 @@
 // 픽셀이 40% 부서지면 블록 전체가 산산조각 남.
 // 좌표는 가로 360 기준의 "게임 좌표"로 계산하고, 화면 크기에 맞춰 늘려서 그림
 
-const VERSION = 'v2.0';
+const VERSION = 'v3.0';
 const W = 360;          // 게임판 가로 (게임 좌표)
 const P = 4;            // 픽셀 한 칸 크기
 const COLS = 12;
@@ -49,18 +49,32 @@ const TYPES = {
   boss: { color: '#ff2a6d', hp: 3.0, reward: 0, armor: 1.3 }, // 약한 광역 공격은 거의 안 들어감
 };
 
-// ---------- 강화 카드 ----------
-// max: 한 판에 고를 수 있는 횟수 (무한히 쌓이면 너무 쉬워져서)
-const CARDS = [
-  { id: 'dmg', name: '세기 +15%', desc: '모든 무기가 픽셀을 더 세게 부숴요', max: 3 },
-  { id: 'rate', name: '연사 +15%', desc: '모든 무기를 더 빨리 쏴요', max: 3 },
-  { id: 'crit', name: '치명타 +10%', desc: '10% 확률로 2배', max: 3 },
-  { id: 'pierce', name: '산탄 관통 +1', desc: '산탄 한 발이 픽셀을 1개 더 뚫어요', max: 2 },
-  { id: 'money', name: '돈 +20%', desc: '블록을 깰 때 버는 돈이 늘어요', max: 3 },
-  { id: 'radius', name: '폭발 범위 +25%', desc: '박격포 구멍이 더 커져요', max: 2 },
-  { id: 'life', name: '생명 +1', desc: '방어선 생명을 1개 채워요 (최대 7)', max: 99 },
-  { id: 'ult', name: '폭격 쿨타임 -20%', desc: '필살기를 더 자주 써요', max: 2 },
-];
+// ---------- 부품 (가챠) ----------
+// 슬롯 5칸에 끼움. 왼쪽부터 발동하고, 복사형 부품은 옆 칸 효과를 그대로 따라함
+const RARITY = {
+  common: { name: '일반', color: '#d8d4f0', sell: 8 },
+  rare: { name: '희귀', color: '#2de2e6', sell: 20 },
+  legend: { name: '전설', color: '#ffd166', sell: 45 },
+};
+const PARTS = {
+  dna: { icon: '🧬', name: '복제 코어', rarity: 'legend', desc: '발사할 때마다 한 번 더 통째로 쏴요' },
+  baron: { icon: '👑', name: '남작의 왕관', rarity: 'legend', desc: '화면의 갑옷 블록 1개마다 레이저 세기 ×1.2 (곱으로 쌓임)' },
+  glass: { icon: '🔮', name: '유리 대포', rarity: 'legend', desc: '모든 세기 ×2. 대신 생명이 최대 2개' },
+  blueprint: { icon: '📘', name: '청사진 칩', rarity: 'rare', desc: '오른쪽 칸 부품의 효과를 복사해요', copy: true },
+  brain: { icon: '🧠', name: '두뇌 회로', rarity: 'rare', desc: '맨 왼쪽 칸 부품의 효과를 복사해요', copy: true },
+  echo: { icon: '🔔', name: '잔향 장치', rarity: 'rare', desc: '발사할 때 첫 한 발이 2번 더 발동 (레이저 3번, 박격포 폭발 3번)' },
+  chain: { icon: '💥', name: '연쇄 폭발', rarity: 'rare', desc: '블록이 산산조각 나면 그 자리가 터져요. 터진 블록이 또 터질 수 있어요' },
+  magnet: { icon: '🧲', name: '황금 자석', rarity: 'rare', desc: '블록을 부술 때마다 돈 +1' },
+  combo: { icon: '📈', name: '콤보 증폭기', rarity: 'rare', desc: '콤보 배율이 세기에도 붙고, 최대 ×1.5 → ×2.5' },
+  lens: { icon: '🔍', name: '과충전 렌즈', rarity: 'common', desc: '레이저가 3칸 더 깊게 뚫어요' },
+  nozzle: { icon: '🌬️', name: '확산 노즐', rarity: 'common', desc: '산탄 +3발, 대신 산탄 세기 -15%' },
+  warhead: { icon: '🎯', name: '대형 탄두', rarity: 'common', desc: '박격포 범위 +30%, 대신 박격포 연사 -20%' },
+  coil: { icon: '🧊', name: '냉각 코일', rarity: 'common', desc: '폭격 쿨타임 -25%' },
+  battery: { icon: '🔋', name: '고물 배터리', rarity: 'common', desc: '연사 +5%, 대신 돈 -10%' },
+  gear: { icon: '⚙️', name: '녹슨 톱니', rarity: 'common', desc: '아무 효과 없어요. 대신 팔면 돈을 꽤 줘요', sell: 40 },
+};
+const SLOTS = 5;
+const sellPrice = (id) => Math.round((PARTS[id].sell || RARITY[PARTS[id].rarity].sell) * (1 + 0.05 * G.stage));
 
 // ---------- 상태 ----------
 let G = null;            // 한 판의 상태
@@ -77,7 +91,10 @@ function newGame() {
     current: 'laser',
     cooldown: 0,
     mods: { dmg: 1, rate: 1, crit: 0, pierce: 0, money: 1, radius: 1, ult: 1 },
-    picked: {},             // 카드별 고른 횟수
+    parts: [],              // 끼운 부품 (왼쪽부터)
+    eff: {},                // 복사까지 계산한 부품별 개수
+    blasts: [],             // 연쇄 폭발 대기열
+    rerolls: 0,
     ult: { cd: 0, max: 40 },
     blocks: [], bullets: [], shells: [], beams: [], fx: [], bits: [], texts: [],
     rowsLeft: 0, rowDist: 0, speed: 10,
@@ -158,6 +175,45 @@ function glowSprite(color, w, h) {
   s.pad = pad;
   glowCache.set(key, s);
   return s;
+}
+
+// ---------- 부품 효과 ----------
+// 복사형 부품을 풀어서 "실제로 발동하는 부품" 목록을 만듦
+function effectiveParts() {
+  const out = [];
+  const resolve = (i, seen) => {
+    const id = G.parts[i];
+    if (!id || seen.has(i)) return null;
+    seen.add(i);
+    if (id === 'blueprint') return resolve(i + 1, seen);
+    if (id === 'brain') return resolve(0, seen);
+    return id;
+  };
+  for (let i = 0; i < G.parts.length; i++) { const id = resolve(i, new Set()); if (id) out.push(id); }
+  return out;
+}
+const has = (id) => G.eff[id] || 0;
+function recalcParts() {
+  G.eff = {};
+  for (const id of effectiveParts()) G.eff[id] = (G.eff[id] || 0) + 1;
+  const m = G.mods;
+  m.dmg = 2 ** has('glass');
+  m.rate = 1.05 ** has('battery');
+  m.money = 0.9 ** has('battery');
+  m.ult = 0.75 ** has('coil');
+  m.radius = 1.3 ** has('warhead');
+  if (has('glass')) G.lives = Math.min(G.lives, 2);
+  updateHud();
+}
+const maxLives = () => (has('glass') ? 2 : 7);
+// 무기 성능 + 부품 보정
+function weaponStat(w) {
+  const s = { ...WEAPONS[w].stat(G.weapons[w]) };
+  if (w === 'laser') { s.drill += 3 * has('lens'); s.dmg *= 1.2 ** (has('baron') * G.blocks.filter((b) => !b.dead && b.type === 'armor').length); }
+  if (w === 'shotgun') { s.pellets += 3 * has('nozzle'); s.dmg *= 0.85 ** has('nozzle'); }
+  let interval = WEAPONS[w].interval / G.mods.rate;
+  if (w === 'mortar') interval /= 0.8 ** has('warhead');
+  return { s, interval };
 }
 
 // ---------- 스테이지 ----------
@@ -244,7 +300,7 @@ function hitPixel(b, i, raw, crit) {
   if (b.type === 'boss' && b.shield) return false;
   // 갑옷: 기본 세기(약점·치명타 전)가 갑옷보다 약하면 거의 안 들어감 → 광역 무기만으로는 보스·갑옷을 못 깸
   const armor = armorOf(b.type);
-  let d = raw * G.mods.dmg;
+  let d = raw * G.mods.dmg * (has('combo') ? comboMult() : 1);
   if (armor && d < armor) d *= 0.1;
   if (crit) d *= 2;
   if (b.type === 'boss') {
@@ -286,8 +342,10 @@ function shatter(b) {
   G.comboTime = 1.5;
   let reward = TYPES[b.type].reward * (1 + 0.06 * G.stage);
   if (b.type === 'boss') reward = 60 + G.stage * 15;
-  const gain = reward * comboMult() * G.mods.money;
+  const gain = (reward + has('magnet') * (1 + 0.05 * G.stage)) * comboMult() * G.mods.money;
   G.money += gain;
+  // 연쇄 폭발: 바로 터뜨리면 끝없이 이어질 수 있어서 대기열에 넣고 매 프레임 조금씩 처리
+  if (has('chain') && b.type !== 'boss') G.blasts.push({ x: b.x + b.w / 2, y: b.y + b.h / 2, n: has('chain') });
   if (gain >= 1) addText(b.x + b.w / 2, b.y + b.h / 2, `+${Math.floor(gain)}`, '#ffd166');
   if (b.type === 'splitter') {
     for (const dx of [-6, 14]) addBlock('mini', b.x + dx, b.y + 2, 4, 3);
@@ -297,6 +355,7 @@ function shatter(b) {
     G.bossKilled++;
     for (const m of G.blocks) if (m.escort) m.escort = false;
     G.fx.push({ type: 'flash', life: 0.4, max: 0.4 });
+    G.lives = Math.min(maxLives(), G.lives + 1); // 보스를 잡으면 생명 1 회복
     showBanner('보스 격파!', `+${Math.floor(gain)}`, false);
   }
   if (b.escort && G.boss && !G.blocks.some((m) => m.escort && !m.dead)) {
@@ -316,13 +375,34 @@ function aimAngle() {
   if (a > Math.PI / 2 || a < min) a = min;
   return a;
 }
-const comboMult = () => 1 + Math.min(5, Math.floor(G.combo / 5)) * 0.1;
+const comboMult = () => 1 + Math.min(has('combo') ? 15 : 5, Math.floor(G.combo / 5)) * 0.1;
 const rollCrit = () => Math.random() < G.mods.crit;
 function fire() {
-  const w = G.current, s = WEAPONS[w].stat(G.weapons[w]);
-  const a = aimAngle(), dx = Math.cos(a), dy = Math.sin(a);
+  const w = G.current, { s, interval } = weaponStat(w);
+  const volleys = 1 + has('dna');
+  for (let v = 0; v < volleys; v++) shoot(w, s, aimAngle() + (v ? (v % 2 ? 1 : -1) * 0.035 * Math.ceil(v / 2) : 0), 2 * has('echo'));
+  G.cooldown = interval;
+}
+// 한 번 쏘기. echo = 첫 한 발이 추가로 발동하는 횟수
+function shoot(w, s, a, echo) {
+  const dx = Math.cos(a), dy = Math.sin(a);
   const ox = W / 2 + dx * 20, oy = TURRET_Y + dy * 20;
   if (w === 'laser') {
+    for (let e = 0; e <= echo; e++) laserBeam(s, ox, oy, dx, dy);
+  } else if (w === 'shotgun') {
+    const spread = 0.6;
+    for (let i = 0; i < s.pellets; i++) {
+      const aa = a - spread / 2 + (spread * i) / (s.pellets - 1) + (Math.random() - 0.5) * 0.05;
+      G.bullets.push({ x: ox, y: oy, vx: Math.cos(aa) * 620, vy: Math.sin(aa) * 620, dmg: s.dmg, pierce: G.mods.pierce, life: 0.7, crit: rollCrit(), echo: i === Math.floor(s.pellets / 2) ? echo : 0 });
+    }
+  } else if (w === 'mortar') {
+    // 누른 자리(사거리 안)까지 날아가서 터짐. 중간에 픽셀에 닿으면 그 자리에서 터짐
+    const dist = Math.min(Math.hypot(pointer.x - ox, pointer.y - oy), 640);
+    G.shells.push({ x: ox, y: oy, vx: dx * 480, vy: dy * 480, left: Math.max(dist, 40), dmg: s.dmg, radius: s.radius * G.mods.radius, crit: rollCrit(), echo });
+  }
+}
+function laserBeam(s, ox, oy, dx, dy) {
+  {
     // 즉시 맞는 광선: 3픽셀 폭(나란한 광선 3줄). 빈 칸은 통과하고, 픽셀을 만날 때마다 피해.
     // 줄마다 drill 개수만큼 뚫거나, 못 부순 픽셀을 만나면 멈춤
     const crit = rollCrit();
@@ -345,18 +425,7 @@ function fire() {
       if (off === 0) reach = t;
     }
     G.beams.push({ x1: ox, y1: oy, x2: ox + dx * reach, y2: oy + dy * reach, life: 0.1 });
-  } else if (w === 'shotgun') {
-    const spread = 0.6;
-    for (let i = 0; i < s.pellets; i++) {
-      const aa = a - spread / 2 + (spread * i) / (s.pellets - 1) + (Math.random() - 0.5) * 0.05;
-      G.bullets.push({ x: ox, y: oy, vx: Math.cos(aa) * 620, vy: Math.sin(aa) * 620, dmg: s.dmg, pierce: G.mods.pierce, life: 0.7, crit: rollCrit() });
-    }
-  } else if (w === 'mortar') {
-    // 누른 자리(사거리 안)까지 날아가서 터짐. 중간에 픽셀에 닿으면 그 자리에서 터짐
-    const dist = Math.min(Math.hypot(pointer.x - ox, pointer.y - oy), 640);
-    G.shells.push({ x: ox, y: oy, vx: dx * 480, vy: dy * 480, left: Math.max(dist, 40), dmg: s.dmg, radius: s.radius * G.mods.radius, crit: rollCrit() });
   }
-  G.cooldown = WEAPONS[w].interval / G.mods.rate;
 }
 function explode(x, y, dmg, radius, crit) {
   for (const b of [...G.blocks]) { // 분열로 새로 생긴 블록은 이번 폭발에서 제외
@@ -439,12 +508,15 @@ function update(dt) {
       const i = pixIndex(b, p.x, p.y);
       if (i < 0 || b.hp[i] <= 0) continue;
       if (b.type === 'boss' && b.shield) { p.life = 0; break; }
-      hitPixel(b, i, p.dmg, p.crit);
-      // 맞은 픽셀 위아래·양옆도 조금 갉아냄
+      // 맞은 픽셀 + 위아래·양옆을 갉아냄 (잔향이면 같은 자리를 더 갉음)
       const c = i % b.cols, r = Math.floor(i / b.cols);
-      for (const [nc, nr] of [[c - 1, r], [c + 1, r], [c, r - 1], [c, r + 1]]) {
-        if (!b.dead && nc >= 0 && nr >= 0 && nc < b.cols && nr < b.rows) hitPixel(b, nr * b.cols + nc, p.dmg * 0.8, p.crit);
+      for (let e = 0; e <= (p.echo || 0); e++) {
+        if (!b.dead) hitPixel(b, i, p.dmg, p.crit);
+        for (const [nc, nr] of [[c - 1, r], [c + 1, r], [c, r - 1], [c, r + 1]]) {
+          if (!b.dead && nc >= 0 && nr >= 0 && nc < b.cols && nr < b.rows) hitPixel(b, nr * b.cols + nc, p.dmg * 0.8, p.crit);
+        }
       }
+      p.echo = 0;
       if (p.pierce-- <= 0) p.life = 0;
     }
     p.life -= dt;
@@ -458,10 +530,16 @@ function update(dt) {
       s.x += s.vx * dt / steps; s.y += s.vy * dt / steps; s.left -= Math.hypot(s.vx, s.vy) * dt / steps;
       const b = blockAt(s.x, s.y);
       const onPixel = b && b.hp[pixIndex(b, s.x, s.y)] > 0;
-      if (onPixel || s.left <= 0 || s.y < -10) { explode(s.x, s.y, s.dmg, s.radius, s.crit); s.done = true; }
+      if (onPixel || s.left <= 0 || s.y < -10) { for (let e = 0; e <= (s.echo || 0); e++) explode(s.x, s.y, s.dmg, s.radius, s.crit); s.done = true; }
     }
   }
   G.shells = G.shells.filter((s) => !s.done);
+
+  // 연쇄 폭발
+  for (let k = 0; k < 25 && G.blasts.length; k++) {
+    const bl = G.blasts.shift();
+    explode(bl.x, bl.y, pixHp('normal', G.stage) * 0.9 * bl.n, 13 + 3 * (bl.n - 1), false);
+  }
 
   G.blocks = G.blocks.filter((b) => !b.dead);
 
@@ -620,6 +698,7 @@ function updateHud() {
   $('#hud-stage').textContent = isBossStage(G.stage) ? `STAGE ${G.stage} · BOSS` : `STAGE ${Math.max(G.stage, 1)}`;
   $('#hud-stage').classList.toggle('boss', isBossStage(G.stage) && !!G.boss);
   $('#hud-lives').textContent = '♥'.repeat(Math.max(0, G.lives));
+  renderPartsBar();
   $('#hud-money').textContent = money().toLocaleString();
   for (const btn of $$('.weapon')) {
     const w = btn.dataset.w, def = WEAPONS[w], lv = G.weapons[w];
@@ -667,36 +746,123 @@ function overlay(id) {
   for (const o of $$('.overlay')) o.hidden = o.id !== id;
 }
 
-// ---------- 스테이지 사이: 강화 카드 ----------
-function stageClear() {
-  G.state = 'cards';
-  pointer.down = false;
-  const pool = CARDS.filter((c) => (G.picked[c.id] || 0) < c.max && !(c.id === 'life' && G.lives >= 7) && !(c.id === 'radius' && !G.weapons.mortar) && !(c.id === 'pierce' && !G.weapons.shotgun));
-  const pick = pool.sort(() => Math.random() - 0.5).slice(0, 3);
-  // 고를 카드가 모자라면 '돈 받기' 카드로 채움 (항상 3장)
-  const cash = 20 + 10 * G.stage;
-  while (pick.length < 3) pick.push({ id: 'cash', name: `● ${cash} 받기`, desc: '바로 돈을 받아요' });
-  $('#cards-title').textContent = isBossStage(G.stage) ? '보스 격파!' : `STAGE ${G.stage} 클리어!`;
-  $('#cards').innerHTML = pick.map((c) => `<button class="card" data-card="${c.id}"><span class="tag">강화</span><b>${c.name}</b><span>${c.desc}</span></button>`).join('');
-  overlay('ov-cards');
+// ---------- 스테이지 사이: 캡슐 머신 (가챠) ----------
+let offers = [], offerPicked = false, selSlot = -1, pendingOffer = null;
+function rollRarity(boss) {
+  const r = Math.random();
+  const [leg, rare] = boss ? [0.18, 0.42] : [0.08, 0.30];
+  return r < leg ? 'legend' : r < leg + rare ? 'rare' : 'common';
 }
-$('#cards').addEventListener('click', (ev) => {
-  const b = ev.target.closest('[data-card]');
+function rollOffers() {
+  const boss = isBossStage(G.stage);
+  const out = [];
+  while (out.length < 3) {
+    const rar = rollRarity(boss);
+    const ids = Object.keys(PARTS).filter((id) => PARTS[id].rarity === rar && !out.includes(id));
+    if (ids.length) out.push(ids[Math.floor(Math.random() * ids.length)]);
+  }
+  return out;
+}
+const rerollCost = () => Math.round((10 + 6 * G.rerolls) * (1 + 0.08 * G.stage));
+const skipCash = () => Math.round(15 + 8 * G.stage);
+function stageClear() {
+  G.state = 'gacha';
+  pointer.down = false;
+  G.rerolls = 0;
+  offers = rollOffers();
+  offerPicked = false; selSlot = -1; pendingOffer = null;
+  $('#gacha-title').textContent = isBossStage(G.stage) ? '보스 격파! 캡슐 머신' : `STAGE ${G.stage} 클리어!`;
+  renderGacha();
+  overlay('ov-gacha');
+}
+function partCard(id, attrs = '') {
+  const p = PARTS[id], r = RARITY[p.rarity];
+  return `<button class="part" style="--rc:${r.color}" ${attrs}><span class="p-icon">${p.icon}</span>
+    <span class="p-body"><span class="p-top"><b>${p.name}</b><span class="p-rar">${r.name}</span></span><span class="p-desc">${p.desc}</span></span></button>`;
+}
+function renderGacha() {
+  $('#gacha-money').textContent = money().toLocaleString();
+  $('#gacha-lead').textContent = pendingOffer ? '교체할 칸을 눌러요 (원래 부품은 팔려요)' : offerPicked ? '부품을 받았어요. 다시 돌려서 더 뽑거나 다음으로 가요' : '캡슐 3개 중 1개를 무료로 골라요';
+  $('#offers').innerHTML = offers.map((id, i) => partCard(id, `data-offer="${i}" ${offerPicked ? 'disabled' : ''}`)).join('');
+  $('#btn-reroll').textContent = `다시 돌리기 ● ${rerollCost()}`;
+  $('#btn-reroll').disabled = G.money < rerollCost();
+  $('#btn-skip').textContent = offerPicked ? '다음 스테이지' : `건너뛰기 +● ${skipCash()}`;
+  // 내 부품 슬롯
+  $('#slots').innerHTML = Array.from({ length: SLOTS }, (_, i) => {
+    const id = G.parts[i];
+    if (!id) return `<button class="slot empty" data-slot="${i}">${pendingOffer != null ? '여기' : ''}</button>`;
+    const p = PARTS[id];
+    return `<button class="slot ${selSlot === i ? 'sel' : ''}" data-slot="${i}" style="--rc:${RARITY[p.rarity].color}" title="${p.name}">${p.icon}</button>`;
+  }).join('');
+  const sel = selSlot >= 0 && G.parts[selSlot];
+  $('#slot-info').innerHTML = sel
+    ? `<b>${PARTS[sel].icon} ${PARTS[sel].name}</b> · ${PARTS[sel].desc}${PARTS[sel].copy ? `<br><span class="copy-note">지금 복사 중: ${copyTarget(selSlot)}</span>` : ''}
+       <div class="row"><button class="ghost" data-move="-1">◀ 왼쪽</button><button class="ghost" data-move="1">오른쪽 ▶</button><button class="ghost sell" data-sell>팔기 ● ${sellPrice(sel)}</button></div>`
+    : `<span class="muted">슬롯을 누르면 순서를 바꾸거나 팔 수 있어요. 왼쪽부터 발동해요.</span>`;
+  renderPartsBar();
+}
+function copyTarget(i) {
+  const seen = new Set();
+  let j = i;
+  while (G.parts[j] && (G.parts[j] === 'blueprint' || G.parts[j] === 'brain') && !seen.has(j)) { seen.add(j); j = G.parts[j] === 'blueprint' ? j + 1 : 0; }
+  const id = G.parts[j];
+  return id && !seen.has(j) && !PARTS[id].copy ? `${PARTS[id].icon} ${PARTS[id].name}` : '없음 (복사할 부품이 없어요)';
+}
+function takePart(id, slot) {
+  if (G.parts[slot]) G.money += sellPrice(G.parts[slot]);
+  G.parts[slot] = id;
+  G.parts = G.parts.filter(Boolean);
+  recalcParts();
+}
+$('#offers').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-offer]');
+  if (!b || offerPicked) return;
+  const id = offers[+b.dataset.offer];
+  if (G.parts.length < SLOTS) { takePart(id, G.parts.length); offerPicked = true; toast(`${PARTS[id].icon} ${PARTS[id].name} 장착!`); }
+  else pendingOffer = id; // 칸이 꽉 찼으면 바꿀 칸을 고르게 함
+  renderGacha();
+});
+$('#slots').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-slot]');
   if (!b) return;
-  const id = b.dataset.card, m = G.mods;
-  G.picked[id] = (G.picked[id] || 0) + 1;
-  if (id === 'dmg') m.dmg *= 1.15;
-  if (id === 'rate') m.rate *= 1.15;
-  if (id === 'crit') m.crit += 0.1;
-  if (id === 'pierce') m.pierce += 1;
-  if (id === 'money') m.money *= 1.2;
-  if (id === 'radius') m.radius *= 1.25;
-  if (id === 'life') G.lives = Math.min(7, G.lives + 1);
-  if (id === 'ult') m.ult *= 0.8;
-  if (id === 'cash') G.money += 20 + 10 * G.stage;
+  const i = +b.dataset.slot;
+  if (pendingOffer) { takePart(pendingOffer, i); toast(`${PARTS[pendingOffer].icon} ${PARTS[pendingOffer].name} 장착!`); pendingOffer = null; offerPicked = true; selSlot = -1; }
+  else selSlot = G.parts[i] ? (selSlot === i ? -1 : i) : -1;
+  renderGacha();
+});
+$('#slot-info').addEventListener('click', (ev) => {
+  const mv = ev.target.closest('[data-move]');
+  if (mv && selSlot >= 0) {
+    const j = selSlot + +mv.dataset.move;
+    if (j >= 0 && j < G.parts.length) { [G.parts[selSlot], G.parts[j]] = [G.parts[j], G.parts[selSlot]]; selSlot = j; recalcParts(); }
+  }
+  if (ev.target.closest('[data-sell]') && selSlot >= 0) {
+    const id = G.parts[selSlot];
+    G.money += sellPrice(id);
+    G.parts.splice(selSlot, 1);
+    selSlot = -1;
+    recalcParts();
+    toast(`${PARTS[id].name} 팔았어요`);
+  }
+  renderGacha();
+});
+$('#btn-reroll').addEventListener('click', () => {
+  if (G.money < rerollCost()) return;
+  G.money -= rerollCost();
+  G.rerolls++;
+  offers = rollOffers();
+  offerPicked = false; pendingOffer = null;
+  renderGacha();
+});
+$('#btn-skip').addEventListener('click', () => {
+  if (!offerPicked) G.money += skipCash();
   overlay(null);
   startStage();
 });
+// 게임 화면 위쪽에 끼운 부품 표시
+function renderPartsBar() {
+  $('#parts-bar').innerHTML = G.parts.map((id) => `<span class="pb" style="--rc:${RARITY[PARTS[id].rarity].color}" title="${PARTS[id].name}">${PARTS[id].icon}</span>`).join('');
+}
 
 // ---------- 상점 ----------
 function openShop() {
@@ -789,6 +955,7 @@ function start() {
   G = newGame();
   overlay(null);
   resize();
+  recalcParts();
   startStage();
 }
 $('#btn-start').addEventListener('click', start);
@@ -833,4 +1000,4 @@ updateHud();
 showTitle();
 requestAnimationFrame(loop);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
-window.__game = { get G() { return G; }, start, update, draw, fire, useUlt, startStage, stageClear, pointer, WEAPONS, upgradeCost, weakPos, get H() { return H; }, get LINE_Y() { return LINE_Y; }, get TURRET_Y() { return TURRET_Y; } };
+window.__game = { get G() { return G; }, start, recalcParts, effectiveParts, PARTS, update, draw, fire, useUlt, startStage, stageClear, pointer, WEAPONS, upgradeCost, weakPos, get H() { return H; }, get LINE_Y() { return LINE_Y; }, get TURRET_Y() { return TURRET_Y; } };

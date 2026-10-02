@@ -28,6 +28,8 @@
       </div>
     </header>
 
+    <div class="parts-bar" id="parts-bar"></div>
+
     <!-- 가운데: 게임판 -->
     <div class="field" id="field">
       <canvas id="canvas"></canvas>
@@ -54,6 +56,7 @@
           <li><b>상점</b> 위쪽 ● 돈을 누르면 무기를 강화해요 (그동안 멈춰요)</li>
           <li><b>무기</b> 레이저는 줄로 깊게 뚫고, 산탄은 표면을 갉고, 박격포는 둥근 구멍을 내요</li>
           <li><b>보스</b> 5스테이지마다 나와요. 노란 약점을 맞히면 3배</li>
+          <li><b>캡슐 머신</b> 스테이지를 깨면 부품을 뽑아요. 좋은 부품끼리 조합하면 엄청 세져요</li>
         </ul>
         <div class="legend">
           <span><i class="sw normal"></i>일반</span>
@@ -66,12 +69,19 @@
       </div>
     </section>
 
-    <!-- 강화 카드 -->
-    <section class="overlay" id="ov-cards" hidden>
+    <!-- 캡슐 머신 (가챠) -->
+    <section class="overlay" id="ov-gacha" hidden>
       <div class="panel">
-        <h2 id="cards-title">스테이지 클리어!</h2>
-        <p class="lead">강화 카드 1장을 골라요</p>
-        <div class="cards" id="cards"></div>
+        <h2><span id="gacha-title">스테이지 클리어!</span><span class="shop-money"><span class="coin">●</span><span id="gacha-money">0</span></span></h2>
+        <p class="lead" id="gacha-lead"></p>
+        <div class="offers" id="offers"></div>
+        <div class="row">
+          <button class="ghost" id="btn-reroll"></button>
+          <button class="primary" id="btn-skip"></button>
+        </div>
+        <h3 class="slots-title">내 부품 <small>왼쪽부터 발동</small></h3>
+        <div class="slots" id="slots"></div>
+        <div class="slot-info" id="slot-info"></div>
       </div>
     </section>
 

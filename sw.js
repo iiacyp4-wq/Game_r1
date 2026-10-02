@@ -1,5 +1,5 @@
 // 오프라인에서도 열리게 파일을 저장. 인터넷이 되면 항상 최신 파일을 받음
-const CACHE = 'blockdefense-v2';
+const CACHE = 'blockdefense-v3';
 const FILES = ['./', 'index.html', 'style.css', 'game.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
