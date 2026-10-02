@@ -1,0 +1,110 @@
+/* 어두운 우주 배경 + 블록별 색. 게임 화면은 한 가지 어두운 모습으로 고정 */
+:root {
+  color-scheme: dark;
+  --bg: #0b1020;
+  --panel: #141b31;
+  --line: #26304d;
+  --text: #eef2ff;
+  --muted: #8b95b5;
+  --accent: #38d39f;
+  --gold: #ffcc4d;
+  --danger: #ff4d6d;
+  --normal: #3fb8c9;
+  --charger: #ff7a45;
+  --splitter: #a970ff;
+  --armor: #7b8496;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  -webkit-user-select: none; user-select: none; touch-action: manipulation;
+}
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; }
+
+#app {
+  position: relative; height: 100%; max-width: 520px; margin: 0 auto;
+  display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+
+/* 위 HUD */
+.hud { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; gap: 8px; }
+.hud-left { display: flex; align-items: center; gap: 10px; }
+.stage { font-weight: 800; letter-spacing: .04em; font-size: 15px; }
+.stage.boss { color: var(--danger); }
+.lives { color: var(--danger); font-size: 15px; letter-spacing: 1px; }
+.hud-right { display: flex; align-items: center; gap: 8px; }
+.money { display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.coin { color: var(--gold); }
+.icon { width: 36px; height: 36px; border-radius: 50%; background: var(--panel); border: 1px solid var(--line); font-weight: 800; }
+
+/* 게임판 */
+.field { position: relative; flex: 1; min-height: 0; touch-action: none; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.combo { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-weight: 900; color: var(--gold); font-size: 15px; text-shadow: 0 2px 8px rgba(0,0,0,.6); pointer-events: none; white-space: nowrap; }
+.banner { position: absolute; top: 38%; left: 0; right: 0; text-align: center; font-size: 30px; font-weight: 900; letter-spacing: .06em; text-shadow: 0 4px 20px rgba(0,0,0,.7); pointer-events: none; }
+.banner small { display: block; font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0; margin-top: 6px; }
+.banner.boss { color: var(--danger); }
+
+/* 아래 무기 바 */
+.bar { display: grid; grid-template-columns: 1fr 1fr 1fr 1.1fr; gap: 6px; padding: 8px 10px 10px; }
+.weapon, .ult {
+  position: relative; height: 62px; border-radius: 14px; background: var(--panel); border: 2px solid var(--line);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px;
+}
+.weapon .w-name { font-weight: 800; font-size: 14px; }
+.weapon .w-sub { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.weapon.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.weapon.locked .w-name { color: var(--muted); }
+.weapon.locked.afford { border-color: var(--gold); }
+.weapon.locked.afford .w-sub { color: var(--gold); font-weight: 700; }
+.ult { overflow: hidden; border-color: #5b3a1a; }
+.ult-name { font-weight: 900; font-size: 15px; color: var(--gold); position: relative; z-index: 1; }
+.ult-cd { font-size: 11px; color: var(--muted); position: relative; z-index: 1; font-variant-numeric: tabular-nums; }
+.ult::before { content: ""; position: absolute; left: 0; bottom: 0; width: 100%; height: var(--fill, 0%); background: rgba(255, 204, 77, .18); }
+.ult.ready { border-color: var(--gold); animation: glow 1.2s ease-in-out infinite; }
+@keyframes glow { 50% { box-shadow: 0 0 16px rgba(255, 204, 77, .55); } }
+
+/* 오버레이 */
+.overlay { position: absolute; inset: 0; background: rgba(5, 8, 18, .78); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.panel { width: 100%; max-width: 400px; max-height: 100%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 20px; display: grid; gap: 12px; }
+.panel h1 { margin: 0; font-size: 28px; letter-spacing: .02em; }
+.panel h2 { margin: 0; font-size: 21px; display: flex; justify-content: space-between; align-items: center; }
+.lead { margin: 0; color: var(--muted); line-height: 1.5; }
+.lead b { color: var(--danger); }
+.howto { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; line-height: 1.45; }
+.howto b { color: var(--accent); margin-right: 4px; }
+.legend { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.legend span { display: flex; align-items: center; gap: 8px; }
+.sw { width: 22px; height: 14px; border-radius: 4px; display: inline-block; flex: none; }
+.sw.normal { background: var(--normal); } .sw.charger { background: var(--charger); }
+.sw.splitter { background: var(--splitter); } .sw.armor { background: var(--armor); border: 2px solid #c9d1e3; }
+.primary { background: var(--accent); color: #062018; border: 0; border-radius: 14px; padding: 14px; font-weight: 900; font-size: 17px; }
+.ghost { background: none; border: 1px solid var(--line); border-radius: 14px; padding: 12px; color: var(--muted); }
+.best { margin: 0; text-align: center; color: var(--muted); font-size: 13px; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stats div { background: var(--bg); border-radius: 12px; padding: 10px; display: grid; gap: 2px; }
+.stats b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.stats span { font-size: 12px; color: var(--muted); }
+.stats .new { color: var(--gold); font-size: 12px; font-weight: 800; }
+
+/* 강화 카드 */
+.cards { display: grid; gap: 10px; }
+.card { text-align: left; background: var(--bg); border: 2px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 4px; }
+.card:active { border-color: var(--accent); }
+.card b { font-size: 17px; }
+.card span { color: var(--muted); font-size: 14px; }
+.card .tag { font-size: 11px; color: var(--accent); font-weight: 800; letter-spacing: .05em; }
+
+/* 상점 */
+.shop-money { font-size: 16px; display: flex; gap: 6px; align-items: center; font-variant-numeric: tabular-nums; }
+.shop-item { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; background: var(--bg); border-radius: 14px; padding: 12px; margin-bottom: 8px; }
+.shop-item b { font-size: 16px; }
+.shop-item .lv { color: var(--accent); font-size: 13px; margin-left: 6px; }
+.shop-item p { margin: 0; grid-column: 1; color: var(--muted); font-size: 13px; line-height: 1.4; }
+.shop-item button { grid-row: 1 / span 2; grid-column: 2; background: var(--gold); color: #2a1d00; border: 0; border-radius: 12px; padding: 10px 12px; font-weight: 900; min-width: 92px; }
+.shop-item button:disabled { background: var(--line); color: var(--muted); }
+
+.toast { position: fixed; left: 50%; bottom: calc(100px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: #000c; color: #fff; padding: 8px 14px; border-radius: 999px; font-size: 14px; z-index: 30; white-space: nowrap; pointer-events: none; }

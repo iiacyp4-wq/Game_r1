@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="블록 디펜스">
+  <title>블록 디펜스</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 위: 스테이지 / 생명 / 돈 -->
+    <header class="hud">
+      <div class="hud-left">
+        <span class="stage" id="hud-stage">STAGE 1</span>
+        <span class="lives" id="hud-lives"></span>
+      </div>
+      <div class="hud-right">
+        <button class="money" id="btn-shop" aria-label="상점 열기"><span class="coin">●</span><span id="hud-money">0</span></button>
+        <button class="icon" id="btn-pause" aria-label="일시정지">Ⅱ</button>
+      </div>
+    </header>
+
+    <!-- 가운데: 게임판 -->
+    <div class="field" id="field">
+      <canvas id="canvas"></canvas>
+      <div class="combo" id="combo" hidden></div>
+      <div class="banner" id="banner" hidden></div>
+    </div>
+
+    <!-- 아래: 무기 / 필살기 -->
+    <nav class="bar">
+      <button class="weapon" data-w="laser"></button>
+      <button class="weapon" data-w="shotgun"></button>
+      <button class="weapon" data-w="mortar"></button>
+      <button class="ult" id="btn-ult"><span class="ult-name">폭격</span><span class="ult-cd" id="ult-cd"></span></button>
+    </nav>
+
+    <!-- 시작 화면 -->
+    <section class="overlay" id="ov-title">
+      <div class="panel">
+        <h1>블록 디펜스</h1>
+        <p class="lead">내려오는 블록이 <b>빨간 선</b>에 닿기 전에 부숴요.</p>
+        <ul class="howto">
+          <li><b>조준·발사</b> 게임판을 누르고 있으면 손가락 쪽으로 계속 쏴요</li>
+          <li><b>무기</b> 아래 버튼으로 바로 바꿔요. 잠긴 무기는 돈이 되면 눌러서 사요</li>
+          <li><b>상점</b> 위쪽 ● 돈을 누르면 무기를 강화해요 (그동안 멈춰요)</li>
+          <li><b>보스</b> 5스테이지마다 나와요. 노란 약점을 맞히면 3배 데미지</li>
+        </ul>
+        <div class="legend">
+          <span><i class="sw normal"></i>일반</span>
+          <span><i class="sw charger"></i>돌진: 경고 후 한 칸 돌진</span>
+          <span><i class="sw splitter"></i>분열: 깨지면 2개로</span>
+          <span><i class="sw armor"></i>갑옷: 약한 공격은 거의 안 들어감</span>
+        </div>
+        <button class="primary" id="btn-start">시작하기</button>
+        <p class="best" id="best"></p>
+      </div>
+    </section>
+
+    <!-- 강화 카드 -->
+    <section class="overlay" id="ov-cards" hidden>
+      <div class="panel">
+        <h2 id="cards-title">스테이지 클리어!</h2>
+        <p class="lead">강화 카드 1장을 골라요</p>
+        <div class="cards" id="cards"></div>
+      </div>
+    </section>
+
+    <!-- 상점 -->
+    <section class="overlay" id="ov-shop" hidden>
+      <div class="panel">
+        <h2>상점 <span class="shop-money"><span class="coin">●</span><span id="shop-money">0</span></span></h2>
+        <div id="shop-list"></div>
+        <button class="primary" id="btn-shop-close">계속하기</button>
+      </div>
+    </section>
+
+    <!-- 일시정지 -->
+    <section class="overlay" id="ov-pause" hidden>
+      <div class="panel">
+        <h2>일시정지</h2>
+        <div id="pause-stats" class="stats"></div>
+        <button class="primary" id="btn-resume">계속하기</button>
+        <button class="ghost" id="btn-quit">처음으로</button>
+      </div>
+    </section>
+
+    <!-- 게임 오버 -->
+    <section class="overlay" id="ov-over" hidden>
+      <div class="panel">
+        <h2>방어선이 뚫렸어요</h2>
+        <div id="over-stats" class="stats"></div>
+        <button class="primary" id="btn-retry">다시 하기</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="game.js"></script>
+</body>
+</html>
